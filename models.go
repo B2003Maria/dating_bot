@@ -7,11 +7,17 @@ import (
 
 var lg *log.Logger = log.New(os.Stdout, "INFO: ", log.Ltime|log.Lmicroseconds)
 
-type Profile struct{
-  Name string
-  Age uint8
-  Gender string
-  Interest string
-  Description string
-  Photo string
+type Profile struct {
+	Name        string
+	Age         uint8
+	Gender      string
+	Interest    string
+	Description string
+	Photo       string
+}
+
+type User struct {
+	ID       int64
+	Username string
+	Profile
 }
