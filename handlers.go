@@ -15,7 +15,14 @@ func (b *Bot) handleMessage(update tgbotapi.Update) {
 	// Обработка команды /start и кнопки "Добавить анкету"
 	switch update.Message.Text {
 	case "/start":
-		b.handleStart(update)
+		if _, exists := Users[update.Message.From.ID]; exists {
+			fmt.Printf("Пользователь с ID=%d существует.\n", update.Message.From.ID)
+			b.handleExistingStart(update)
+			return
+		}
+		Users[update.Message.From.ID] = User{}
+		saveToFile(Users)
+		b.handleFirstStart(update)
 	case "Добавить анкету":
 		b.handleProfileWriting(update)
 	case "Смотреть анкеты":
@@ -75,12 +82,21 @@ func (b *Bot) showProfiles(update tgbotapi.Update) {
 }
 
 // Реакция на команду /start
-func (b *Bot) handleStart(update tgbotapi.Update) {
+func (b *Bot) handleFirstStart(update tgbotapi.Update) {
 	text := fmt.Sprintf("Привет, %s! В данном боте ты можешь заводить новые знакомства!", update.SentFrom().FirstName)
 
 	// Создаем кнопку "Добавить анкету"
 	msg := tgbotapi.NewMessage(update.Message.Chat.ID, text)
 	msg.ReplyMarkup = AddProfileKeyboard
+	b.api.Send(msg)
+}
+
+func (b *Bot) handleExistingStart(update tgbotapi.Update) {
+	text := fmt.Sprintf("Привет снова, %s! В данном боте ты можешь заводить новые знакомства!", update.SentFrom().FirstName)
+
+	// Создаем кнопку "Добавить анкету"
+	msg := tgbotapi.NewMessage(update.Message.Chat.ID, text)
+	msg.ReplyMarkup = WatchProfilesKeyboard
 	b.api.Send(msg)
 }
 
@@ -255,9 +271,12 @@ func (b *Bot) saveUser(update tgbotapi.Update, profile Profile) {
 	var user User
 	user.ChatID = update.Message.Chat.ID
 	user.Profile = profile
-	user.UserID = update.Message.From.ID
 	user.Username = update.Message.From.UserName
-	Users = append(Users, user)
+	Users[update.Message.From.ID] = user
+	err := saveToFile(Users)
+	if err != nil {
+		lg.Printf("Failed to save user %v:\n%s", user, err)
+	}
 	lg.Printf("User: %s is saved!", update.Message.From.UserName)
 	delete(userStates, update.Message.Chat.ID)
 }

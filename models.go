@@ -3,37 +3,36 @@ package main
 import (
 	"log"
 	"os"
-
-	"github.com/kamva/mgm/v3"
 )
 
 // Логгер для вывода
 var lg *log.Logger = log.New(os.Stdout, "INFO: ", log.Ltime|log.Lmicroseconds)
 
+var (
+	dbPath string
+	token  string
+)
+
 // Profile структура для профиля пользователя
 type Profile struct {
-	Name        string `bson:"name"`
-	Age         uint8  `bson:"age"`
-	Gender      string `bson:"gender"`
-	Interest    string `bson:"interest"`
-	Description string `bson:"description"`
-	Photo       string `bson:"photo"`
+	Name        string
+	Age         uint8
+	Gender      string
+	Interest    string
+	Description string
+	Photo       string
 }
 
 // User структура для пользователя
 type User struct {
-	// Встроенные базовые поля (ID, CreatedAt, UpdatedAt)
-	mgm.DefaultModel `bson:",inline"`
-
-	UserID    int64              `bson:"user_id"`
-	ChatID    int64              `bson:"chat_id"`
-	Username  string             `bson:"username"`
-	Profile   Profile            `bson:"profile"`
-	LikedTo   map[int64]struct{} `bson:"liked_to"`
-	LikedBy   map[int64]struct{} `bson:"liked_by"`
-	DislikeTo map[int64]struct{} `bson:"dislike_to"`
-	SleptTo   map[int64]struct{} `bson:"slept_to"`
+	ChatID    int64
+	Username  string
+	Profile   Profile
+	LikedTo   map[int64]struct{}
+	LikedBy   map[int64]struct{}
+	DislikeTo map[int64]struct{}
+	SleptTo   map[int64]struct{}
 }
 
 // Users массив пользователей
-var Users []User
+var Users = make(map[int64]User)

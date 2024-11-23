@@ -1,0 +1,18 @@
+{
+  "837095301": {
+    "ChatID": 837095301,
+    "Username": "egrmk",
+    "Profile": {
+      "Name": "Егор",
+      "Age": 24,
+      "Gender": "Мужской",
+      "Interest": "Девушки",
+      "Description": "Кратко",
+      "Photo": "AgACAgIAAxkBAAIC-GdAztkoAfmhcDtIDAQV4fcXcOW2AAKu6jEbXpgJShlRQZqIzis5AQADAgADcwADNgQ"
+    },
+    "LikedTo": null,
+    "LikedBy": null,
+    "DislikeTo": null,
+    "SleptTo": null
+  }
+}

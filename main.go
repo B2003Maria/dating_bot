@@ -11,28 +11,10 @@ type Bot struct {
 }
 
 func main() {
-	initMongo()
-
-	user := &User{
-		UserID:   12345,
-		ChatID:   67890,
-		Username: "test_user",
-		Profile: Profile{
-			Name:        "John",
-			Age:         30,
-			Gender:      "Male",
-			Interest:    "Reading",
-			Description: "Avid reader and traveler",
-			Photo:       "photo_id_123",
-		},
-		LikedTo:   make(map[int64]struct{}),
-		LikedBy:   make(map[int64]struct{}),
-		DislikeTo: make(map[int64]struct{}),
-		SleptTo:   make(map[int64]struct{}),
-	}
-
-	if err := CreateUser(user); err != nil {
-		lg.Fatalf("Failed to create user! %s", err)
+	loadEnv()
+	err := loadFromFile(&Users)
+	if err != nil {
+		lg.Fatalf("Failed to load db: %s", err)
 	}
 	bot := initBot(token)
 	bot.start()
