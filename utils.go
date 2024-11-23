@@ -6,3 +6,5 @@ func checkAge(age uint8) bool {
 	}
 	return false
 }
+
+// func findUserInUsers()

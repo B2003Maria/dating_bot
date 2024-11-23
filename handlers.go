@@ -8,14 +8,10 @@ import (
 )
 
 func (b *Bot) handleMessage(update tgbotapi.Update) {
-	chatID := update.Message.Chat.ID
-
-	// Проверяем, если пользователь уже в процессе заполнения анкеты
-	if state, exists := userStates[chatID]; exists && state.CurrentField != "AllGood" {
+	if state, exists := userStates[update.Message.From.ID]; exists && state.CurrentField != "AllGood" {
 		b.handleProfileResponse(update)
 		return
 	}
-
 	// Обработка команды /start и кнопки "Добавить анкету"
 	switch update.Message.Text {
 	case "/start":
@@ -27,19 +23,64 @@ func (b *Bot) handleMessage(update tgbotapi.Update) {
 	}
 }
 
+func (b *Bot) handleCallbackQuery(update tgbotapi.Update) {
+	callback := update.CallbackQuery
+
+	// Подтверждаем получение CallbackQuery, чтобы Telegram перестал показывать "часики"
+	ack := tgbotapi.NewCallback(callback.ID, "") // Пустая строка, если не нужно отправлять сообщение пользователю
+	if _, err := b.api.Request(ack); err != nil {
+		lg.Printf("Ошибка подтверждения CallbackQuery: %v", err)
+		return
+	}
+
+	// Обрабатываем действие на основе данных кнопки
+	action := callback.Data
+	lg.Println(action)
+	var response string
+
+	switch action {
+	case "like":
+		response = "Вы поставили ❤️"
+	case "dislike":
+		response = "Вы поставили 💔"
+	case "sleep":
+		response = "Вы выбрали 😴. Пользователь будет отложен."
+	default:
+		response = "Неизвестное действие."
+	}
+
+	// Отправляем ответ пользователю
+	msg := tgbotapi.NewMessage(callback.Message.Chat.ID, response)
+	b.api.Send(msg)
+}
+
+func (b *Bot) showProfile(update tgbotapi.Update, profile Profile) {
+	summary := fmt.Sprintf(
+		"Имя: %s\nВозраст: %d\nПол: %s\nИнтересы: %s\nОписание: %s",
+		profile.Name, profile.Age, profile.Gender, profile.Interest, profile.Description,
+	)
+
+	// Отправка фотографии с подписью
+	photoMsg := tgbotapi.NewPhoto(update.Message.Chat.ID, tgbotapi.FileID(profile.Photo))
+	photoMsg.ReplyMarkup = ReactionsInlineKeyboard
+	photoMsg.Caption = summary
+	b.api.Send(photoMsg)
+}
+
+func (b *Bot) showProfiles(update tgbotapi.Update) {
+	for _, user := range Users {
+		lg.Println(user)
+		b.showProfile(update, user.Profile)
+	}
+}
+
 // Реакция на команду /start
 func (b *Bot) handleStart(update tgbotapi.Update) {
 	text := fmt.Sprintf("Привет, %s! В данном боте ты можешь заводить новые знакомства!", update.SentFrom().FirstName)
 
 	// Создаем кнопку "Добавить анкету"
-	keyboard := tgbotapi.NewReplyKeyboard(
-		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton("Добавить анкету"),
-		),
-	)
-
 	msg := tgbotapi.NewMessage(update.Message.Chat.ID, text)
-	msg.ReplyMarkup = keyboard
+	msg.ReplyMarkup = AddProfileKeyboard
 	b.api.Send(msg)
 }
 
@@ -62,20 +103,18 @@ func (b *Bot) handleProfileWriting(update tgbotapi.Update) {
 			CurrentField: "Name",
 		}
 	}
-
-	// Приветственное сообщение
 	msg := tgbotapi.NewMessage(chatID, "Отлично, давай заполним информацию о тебе, которая будет отображаться в анкете.")
 	b.api.Send(msg)
-	b.askNextQuestion(chatID)
+	b.askNextQuestion(update)
 }
 
 // Функция для запроса следующего вопроса
-func (b *Bot) askNextQuestion(chatID int64) {
-	state := userStates[chatID]
+func (b *Bot) askNextQuestion(update tgbotapi.Update) {
+	state := userStates[update.Message.Chat.ID]
 
 	// Определение вопроса и клавиатуры в зависимости от текущего поля
 	var question string
-	var replyMarkup interface{}
+	var keyboard interface{}
 
 	switch state.CurrentField {
 	case "Name":
@@ -84,50 +123,29 @@ func (b *Bot) askNextQuestion(chatID int64) {
 		question = "Сколько тебе лет?\nВведите число от 18 до 99."
 	case "Gender":
 		question = "Укажи свой пол?"
-		// Создаем клавиатуру с кнопками для выбора пола
-		replyMarkup = tgbotapi.NewReplyKeyboard(
-			tgbotapi.NewKeyboardButtonRow(
-				tgbotapi.NewKeyboardButton("Мужской"),
-				tgbotapi.NewKeyboardButton("Женский"),
-			),
-		)
+		keyboard = ChooseGenderKeyboard
 	case "Interest":
 		question = "Кто тебе интересен?"
-		// Создаем клавиатуру с кнопками для выбора интересов
-		replyMarkup = tgbotapi.NewReplyKeyboard(
-			tgbotapi.NewKeyboardButtonRow(
-				tgbotapi.NewKeyboardButton("Девушки"),
-				tgbotapi.NewKeyboardButton("Парни"),
-				tgbotapi.NewKeyboardButton("Неважно"),
-			),
-		)
+		keyboard = ChooseInterestKeyboard
 	case "Description":
 		question = "Напиши краткое описание о себе"
 	case "Photo":
 		question = "Загрузи своё фото"
 	case "Check":
 		question = "Всё введено верно?"
-		replyMarkup = tgbotapi.NewReplyKeyboard(
-			tgbotapi.NewKeyboardButtonRow(
-				tgbotapi.NewKeyboardButton("Всё верно"),
-				tgbotapi.NewKeyboardButton("Ввести анекту заново"),
-			),
-		)
+		keyboard = IsProfileOkKeyboard
 	case "AllGood":
 		question = "Спасибо! Ваша анкета сохранена!"
-		replyMarkup = tgbotapi.NewReplyKeyboard(
-			tgbotapi.NewKeyboardButtonRow(
-				tgbotapi.NewKeyboardButton("Смотреть анкеты"),
-			),
-		)
+		keyboard = WatchProfilesKeyboard
+		b.saveUser(update, state.Profile)
 	default:
-		b.finishProfile(chatID)
+		b.finishProfile(update)
 		return
 	}
 	// Отправка вопроса с клавиатурой (если она есть)
-	msg := tgbotapi.NewMessage(chatID, question)
-	if replyMarkup != nil {
-		msg.ReplyMarkup = replyMarkup
+	msg := tgbotapi.NewMessage(update.Message.Chat.ID, question)
+	if keyboard != nil {
+		msg.ReplyMarkup = keyboard
 	} else {
 		msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
 	}
@@ -137,8 +155,6 @@ func (b *Bot) askNextQuestion(chatID int64) {
 func (b *Bot) handleProfileResponse(update tgbotapi.Update) {
 	chatID := update.Message.Chat.ID
 	state := userStates[chatID]
-
-	// Сохранение ответа в зависимости от текущего поля и проверка на корректность
 	switch state.CurrentField {
 	case "Name":
 		state.Profile.Name = update.Message.Text
@@ -174,11 +190,9 @@ func (b *Bot) handleProfileResponse(update tgbotapi.Update) {
 		state.CurrentField = "Photo"
 	case "Photo":
 		if update.Message.Photo != nil {
-			// Сохраняем последнее фото (с наибольшим разрешением)
 			state.Profile.Photo = update.Message.Photo[0].FileID
 			state.CurrentField = "" // Заполнение анкеты завершено
 		} else {
-			// Если пользователь отправил не фото, просим загрузить фото снова
 			msg := tgbotapi.NewMessage(chatID, "Пожалуйста, загрузи фото.")
 			b.api.Send(msg)
 			return
@@ -187,30 +201,31 @@ func (b *Bot) handleProfileResponse(update tgbotapi.Update) {
 		// lg.Println("\n\n\n\n")
 		if update.Message.Text == "Всё верно" {
 			state.CurrentField = "AllGood"
-			b.askNextQuestion(chatID)
+			b.askNextQuestion(update)
 			return
 		}
 		if update.Message.Text == "Ввести анекту заново" {
 			state.CurrentField = "Name"
-			b.askNextQuestion(chatID) // Перезапускаем вопросы
+			b.askNextQuestion(update) // Перезапускаем вопросы
 			return
 		}
 		// Если текст не распознан
 		msg := tgbotapi.NewMessage(chatID, "Пожалуйста, выбери один из вариантов: 'Всё верно' или 'Ввести анкету заново'.")
 		b.api.Send(msg)
 	case "AllGood":
+		b.saveUser(update, state.Profile)
 		b.handleMessage(update)
 		return
 	}
-	b.askNextQuestion(chatID)
+	b.askNextQuestion(update)
 }
 
 // Завершение заполнения анкеты
-func (b *Bot) finishProfile(chatID int64) {
-	state := userStates[chatID]
+func (b *Bot) finishProfile(update tgbotapi.Update) {
+	state := userStates[update.Message.Chat.ID]
 	profile := state.Profile
 
-	msg := tgbotapi.NewMessage(chatID, "Анкета заполнена! Спасибо!\nДавай сверим информацию!")
+	msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Анкета заполнена! Спасибо!\nДавай сверим информацию!")
 	b.api.Send(msg)
 	summary := fmt.Sprintf(
 		"Имя: %s\nВозраст: %d\nПол: %s\nИнтересы: %s\nОписание: %s",
@@ -218,20 +233,31 @@ func (b *Bot) finishProfile(chatID int64) {
 	)
 
 	// Отправка фотографии с подписью
-	photoMsg := tgbotapi.NewPhoto(chatID, tgbotapi.FileID(profile.Photo))
+	photoMsg := tgbotapi.NewPhoto(update.Message.Chat.ID, tgbotapi.FileID(profile.Photo))
 	photoMsg.Caption = summary
 	b.api.Send(photoMsg)
 
 	// Если анкета подтверждена, удаляем состояние
 	if state.CurrentField == "AllGood" {
-		delete(userStates, chatID)
+		b.saveUser(update, profile)
 	} else {
 		state.CurrentField = "Check"
-		b.askNextQuestion(chatID)
+		b.askNextQuestion(update)
 	}
 }
 
 func (b *Bot) handleWatchProfile(update tgbotapi.Update) {
-	msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Скоро будет добавлен функционал по мэтчу и базе данных")
-	b.api.Send(msg)
+	lg.Println(Users)
+	b.showProfiles(update)
+}
+
+func (b *Bot) saveUser(update tgbotapi.Update, profile Profile) {
+	var user User
+	user.ChatID = update.Message.Chat.ID
+	user.Profile = profile
+	user.UserID = update.Message.From.ID
+	user.Username = update.Message.From.UserName
+	Users = append(Users, user)
+	lg.Printf("User: %s is saved!", update.Message.From.UserName)
+	delete(userStates, update.Message.Chat.ID)
 }
