@@ -3,12 +3,28 @@
     "ChatID": 837095301,
     "Username": "egrmk",
     "Profile": {
-      "Name": "Егор",
-      "Age": 24,
+      "Name": "Egor",
+      "Age": 27,
       "Gender": "Мужской",
       "Interest": "Девушки",
       "Description": "Кратко",
-      "Photo": "AgACAgIAAxkBAAIC-GdAztkoAfmhcDtIDAQV4fcXcOW2AAKu6jEbXpgJShlRQZqIzis5AQADAgADcwADNgQ"
+      "Photo": "AgACAgIAAxkBAAIFv2dTFA74PrPLn5PAf2tTGujF0MYDAAJB5zEbzEyYSr4ImT9xGjzPAQADAgADcwADNgQ"
+    },
+    "LikedTo": null,
+    "LikedBy": null,
+    "DislikeTo": null,
+    "SleptTo": null
+  },
+  "974522435": {
+    "ChatID": 974522435,
+    "Username": "m_burykh",
+    "Profile": {
+      "Name": "Маша",
+      "Age": 21,
+      "Gender": "Женский",
+      "Interest": "Неважно",
+      "Description": "Кратко",
+      "Photo": "AgACAgIAAxkBAAIF2WdTFPa7xbneFJHLhPUQFFJsYNaLAAIX5zEbcECZSjvNX73a8jsZAQADAgADcwADNgQ"
     },
     "LikedTo": null,
     "LikedBy": null,
