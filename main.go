@@ -27,7 +27,7 @@ func initBot(token string) *Bot {
 		lg.Panicf("Failed to read token: %s", err)
 	}
 	api.Debug = true
-	log.Printf("Авторизован под аккаунтом %s", api.Self.UserName)
+	log.Printf("Authorised under account %s", api.Self.UserName)
 	return &Bot{api: api}
 }
 
